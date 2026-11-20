@@ -286,15 +286,26 @@
     </footer>
   </div>
 
+  <div id="checkout-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:50;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#111827;border:1px solid #334155;border-radius:16px;max-width:460px;width:100%;padding:28px;text-align:center;">
+      <h3 style="margin-bottom:10px;">Direct Bundle Checkout Activating</h3>
+      <p style="color:#94a3b8;font-size:0.95rem;margin-bottom:20px;">
+        Our Paddle direct bundle checkout is finalizing domain verification. You can buy individual skills live right now on Agensi.io, or email us for instant early-access bundle delivery.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <a class="btn-primary" href="https://www.agensi.io/creators/adel-battah" target="_blank" rel="noopener">Buy Individual Skills Live on Agensi.io</a>
+        <a class="btn-secondary" href="mailto:adelbattah16@gmail.com?subject=Solo%20Founder%20%26%20SaaS%20Shield%20Bundle%20Access">Request Direct Bundle Invoice</a>
+        <button onclick="document.getElementById('checkout-modal').style.display='none'" style="background:none;border:none;color:#94a3b8;margin-top:6px;cursor:pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // === PADDLE CONFIGURATION (Activate once Paddle approves this URL) ===
-    // Replace empty strings with your live Paddle client token and Price IDs.
-    // Until populated, clicking Buy routes visitors straight to your live Agensi.io store so zero traffic is lost!
+    // === PADDLE CONFIGURATION (Activate once Paddle approves adelbattah.github.io) ===
     const PADDLE_CONFIG = {
       clientToken: "",          // e.g. "live_xxxxxxxxxxxxxxxxxxxx"
       priceIdCore29: "",        // e.g. "pri_xxxxxxxxxxxxxxxxxxxx"
-      priceIdPro39: "",         // e.g. "pri_xxxxxxxxxxxxxxxxxxxx"
-      fallbackUrl: "https://www.agensi.io/creators/adel-battah"
+      priceIdPro39: ""          // e.g. "pri_xxxxxxxxxxxxxxxxxxxx"
     };
 
     if (PADDLE_CONFIG.clientToken && window.Paddle) {
@@ -306,7 +317,7 @@
       if (PADDLE_CONFIG.clientToken && priceId && window.Paddle) {
         Paddle.Checkout.open({ items: [{ priceId: priceId, quantity: 1 }] });
       } else {
-        window.open(PADDLE_CONFIG.fallbackUrl, "_blank", "noopener");
+        document.getElementById("checkout-modal").style.display = "flex";
       }
     }
   </script>
