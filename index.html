@@ -539,7 +539,7 @@
       </div>
 
       <div class="guarantee-box">
-        <strong>14-Day Money-Back Guarantee &amp; Billing Clarity:</strong> All orders are processed securely by <strong>Paddle.com</strong> (Merchant of Record, handling global VAT/tax). <em>Transparency note:</em> While our dedicated <code>SAASSHIELD</code> statement descriptor finalizes, your Paddle checkout and card statement may display our parent publishing studio (<strong>The Nourish Code / PADDLE.NET* THENOURISH</strong>). Your signed <code>.ZIP</code> download unlocks immediately on-screen and is emailed automatically—covered by our 14-day no-questions-asked <a href="refund.html" style="color:var(--blue);">Refund Policy</a>.
+        <strong>14-Day Money-Back Guarantee &amp; Billing Clarity:</strong> All orders are processed securely by <strong>Paddle.com</strong> (Merchant of Record, handling global VAT/tax). Your bank statement will display <code>PADDLE.NET* ADELBATTAH</code>. Your signed <code>.ZIP</code> download unlocks immediately on-screen and is emailed automatically—covered by our 14-day no-questions-asked <a href="refund.html" style="color:var(--blue);">Refund Policy</a>.
       </div>
     </section>
 
@@ -733,7 +733,10 @@
       lastTier = tier;
       const priceId = tier === "core" ? PADDLE_CONFIG.priceIdCore29 : PADDLE_CONFIG.priceIdPro39;
       if (window.Paddle && priceId) {
-        Paddle.Checkout.open({ items: [{ priceId: priceId, quantity: 1 }] });
+        Paddle.Checkout.open({
+          items: [{ priceId: priceId, quantity: 1 }],
+          customData: { storefront: "saas-shield", tier: tier }
+        });
       }
     }
 
