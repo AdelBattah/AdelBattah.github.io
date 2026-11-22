@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anatomy of a $10k AWS Bill: NAT Gateway Bytes, S3-to-Lambda Loops &amp; the 15-Minute CloudTrail Checklist</title>
+  <meta name="description" content="How solo founders and small AWS teams accidentally rack up $10,000+ bills from NAT Gateways, Lambda-to-S3 recursion loops, and leaked IAM keys—plus exact Terraform fixes and the 15-minute containment checklist." />
+  <link rel="canonical" href="https://adelbattah.github.io/guides/aws-nat-gateway-lambda-bill-shock/" />
+  <meta property="og:title" content="Anatomy of a $10k AWS Bill: NAT Gateway Bytes, S3-to-Lambda Loops &amp; CloudTrail Containment" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://adelbattah.github.io/guides/aws-nat-gateway-lambda-bill-shock/" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "Anatomy of a $10k AWS Bill: NAT Gateway Bytes, S3-to-Lambda Loops & the 15-Minute CloudTrail Checklist",
+    "author": { "@type": "Person", "name": "Adel Battah" },
+    "datePublished": "2026-11-22",
+    "mainEntityOfPage": "https://adelbattah.github.io/guides/aws-nat-gateway-lambda-bill-shock/"
+  }
+  </script>
+  <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "4f1b005c6fc34336987f6cfc0f90a395"}'></script><!-- End Cloudflare Web Analytics -->
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #111827;
+      --border: #1f2937;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --blue: #38bdf8;
+      --green: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.72;
+    }
+    .container { max-width: 780px; margin: 0 auto; padding: 0 24px 72px; }
+    header {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .logo { font-weight: 800; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; margin-left: 16px; font-size: 0.9rem; font-weight: 600; }
+    nav a:hover { color: var(--text); }
+    .meta { color: var(--muted); font-size: 0.88rem; margin-bottom: 12px; }
+    h1 { font-size: clamp(1.8rem, 4vw, 2.45rem); line-height: 1.2; margin-bottom: 18px; }
+    h2 { font-size: 1.4rem; margin: 36px 0 12px; color: var(--blue); }
+    h3 { font-size: 1.12rem; margin: 22px 0 8px; }
+    p { color: #cbd5e1; margin-bottom: 16px; font-size: 1.01rem; }
+    ul, ol { margin: 0 0 18px 22px; color: #cbd5e1; }
+    li { margin-bottom: 8px; }
+    code { background: #111827; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-size: 0.88rem; }
+    pre {
+      background: #050810;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      margin: 14px 0 22px;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      line-height: 1.55;
+    }
+    .callout {
+      background: rgba(245, 158, 11, 0.08);
+      border-left: 4px solid var(--accent);
+      padding: 16px 18px;
+      border-radius: 0 10px 10px 0;
+      margin: 22px 0;
+    }
+    .callout a { color: #fbbf24; font-weight: 700; }
+    .cta-box {
+      margin-top: 40px;
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--accent);
+      color: #090d16;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-weight: 800;
+      text-decoration: none;
+      margin-right: 10px;
+      margin-top: 10px;
+    }
+    .btn-sec {
+      display: inline-block;
+      background: #1e293b;
+      color: var(--text);
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid #334155;
+      margin-top: 10px;
+    }
+    footer {
+      margin-top: 48px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--blue); text-decoration: none; margin: 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a class="logo" href="../../index.html">SAAS<span>SHIELD</span></a>
+      <nav>
+        <a href="../../tools/aws-bill-shock-calculator/">AWS Calculator</a>
+        <a href="../../checklist.html">60-Sec Diagnostic</a>
+        <a href="../../index.html#pricing" style="color:#fbbf24;">4-Skill Bundle ($39)</a>
+      </nav>
+    </header>
+
+    <div class="meta">Published November 22, 2026 • By Adel Battah • 6 min read</div>
+    <h1>Anatomy of a $10k AWS Bill: NAT Gateway Bytes, S3-to-Lambda Loops &amp; the 15-Minute CloudTrail Checklist</h1>
+
+    <p>
+      Almost every viral "I woke up to a $14,000 AWS bill" postmortem traces back to one of three architectural oversights that default tutorials skip. None of them require high user traffic—all three can drain a startup's bank account overnight while you sleep.
+    </p>
+
+    <div class="callout">
+      <strong>Interactive Tool:</strong> Want to test your own numbers right now? Run our free client-side <a href="../../tools/aws-bill-shock-calculator/">AWS NAT Gateway &amp; Lambda Loop Bill-Shock Calculator →</a>
+    </div>
+
+    <h2>1. The Silent NAT Gateway → S3 Data Bleed</h2>
+    <p>
+      When EC2 instances, ECS tasks, or VPC-attached Lambda functions inside a <strong>private subnet</strong> read or write Amazon S3 or DynamoDB, AWS routes that traffic through your <strong>NAT Gateway</strong> by default unless you configure a VPC Endpoint.
+    </p>
+    <p>
+      In US East/West and EU West, AWS charges <strong>$0.045 per GB processed</strong> through a NAT Gateway on top of the hourly fee. Moving 50 TB/month of backups, logs, or media to S3 costs <strong>~$2,304/month</strong> in avoidable data-processing fees—even though S3 sits inside AWS's own network.
+    </p>
+    <h3>The $0 Terraform Fix: VPC Gateway Endpoints</h3>
+    <p>AWS provides <strong>VPC Gateway Endpoints completely free ($0/hr, $0/GB)</strong> for exactly two services: <strong>S3</strong> and <strong>DynamoDB</strong>.</p>
+<pre>resource "aws_vpc_endpoint" "s3_gateway" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+}</pre>
+
+    <h2>2. The Overnight S3 → Lambda Recursion Loop (And the Hidden S3 API Bill)</h2>
+    <p>
+      Classic serverless failure: an S3 <code>ObjectCreated</code> trigger invokes a Lambda function (e.g., resizing an image or compressing logs), and the function writes its output back into the <strong>same S3 bucket</strong> without non-overlapping prefix filters.
+    </p>
+    <p>
+      Because new AWS accounts default to <strong>1,000 concurrent Lambda executions</strong>, a single unthrottled loop running at 500 concurrency for 8 hours overnight triggers <strong>~36 million invocations</strong>—and the nastiest part of the bill isn't even Lambda compute: <strong>S3 PUT + GET API charges ($0.0054 per 1,000 requests)</strong> silently add hundreds to thousands of dollars on top.
+    </p>
+    <h3>Hardening Rule + Emergency CLI Brake</h3>
+    <ul>
+      <li>Always write processed artifacts to a <strong>separate destination bucket</strong> (or enforce strict non-overlapping prefixes).</li>
+      <li>Set <code>reserved_concurrent_executions</code> (e.g., <code>25</code>) on every event-driven Lambda.</li>
+      <li>If a loop is already firing live, block all <em>new</em> invocations immediately with one CLI command:</li>
+    </ul>
+<pre>aws lambda put-function-concurrency \
+  --function-name asset-processor \
+  --reserved-concurrent-executions 0</pre>
+
+    <h2>3. Leaked IAM Keys &amp; Multi-Region GPU Cryptojacking</h2>
+    <p>
+      When a long-lived IAM Access Key leaks (or is stolen via EC2 IMDSv1 SSRF), attackers rarely launch servers in <code>us-east-1</code>. They spin up <code>p4d.24xlarge</code> and <code>g5</code> GPU instances across 15 unused regions like <code>ap-southeast-2</code> or <code>eu-north-1</code> where founders never check.
+    </p>
+    <p>
+      Attach an IAM Permissions Boundary (or Organization SCP) using <code>aws:RequestedRegion</code> with <code>NotAction</code> excluding global services (<code>iam:*</code>, <code>sts:*</code>, <code>route53:*</code>, <code>cloudfront:*</code>, <code>budgets:*</code>, <code>ce:*</code>) so you never lock yourself out while blocking unauthorized regions and GPU families.
+    </p>
+
+    <h2>4. The 15-Minute CloudTrail Containment Checklist (Don't Delete First!)</h2>
+    <p>
+      When a spike hits, the worst mistake founders make is immediately running <code>aws iam delete-user</code>. Deleting the compromised principal before exporting forensic logs makes it harder to present a clean timeline in an <strong>AWS Support Billing Credit Appeal</strong>.
+    </p>
+    <ol>
+      <li><strong>Minutes 0–5 (Freeze, Don't Delete):</strong> Run <code>aws iam update-access-key --status Inactive</code> and attach an explicit <code>Deny *</code> inline policy to lock out the attacker while preserving audit history.</li>
+      <li><strong>Minutes 5–10 (Preserve CloudTrail):</strong> Export recent activity via <code>aws cloudtrail lookup-events --max-results 50 &gt; incident_trail.json</code> and snapshot Cost Explorer by <code>SERVICE</code> and <code>REGION</code>.</li>
+      <li><strong>Minutes 10–15 (All-Region Sweep &amp; Guardrails):</strong> Loop across all enabled regions to terminate rogue EC2/NAT/Bedrock resources, enable Root MFA + AWS Budgets + Cost Anomaly Detection, and then submit your structured AWS Support Billing case (noting that goodwill credits remain at AWS's discretion).</li>
+    </ol>
+
+    <div class="cta-box">
+      <h3 style="margin-top:0;">Automate These Checks in Claude Code, Cursor &amp; ChatGPT</h3>
+      <p style="margin-bottom:10px;">
+        We open-sourced <strong>4 free MIT-licensed Lite <code>SKILL.md</code> auditors</strong> (AWS bill shock, Stripe webhooks, freelance contracts, overdue invoices) — or grab the <strong>Full 4-Skill Pro Bundle ($39 one-time)</strong> with complete IAM region/GPU locks, the 15-min emergency runbook, and AWS Support appeal templates.
+      </p>
+      <a class="btn" href="../../tools/aws-bill-shock-calculator/">Try Free AWS Calculator</a>
+      <a class="btn-sec" href="https://github.com/AdelBattah/saas-revenue-shield-lite" target="_blank" rel="noopener">Free MIT Lite Repo (GitHub)</a>
+      <a class="btn-sec" href="../../index.html#pricing?utm_source=aws_guide&utm_medium=canonical">Full 4-Skill Pro Bundle ($39)</a>
+    </div>
+
+    <footer>
+      <a href="../../index.html">Home</a>
+      <a href="../../tools/aws-bill-shock-calculator/">AWS Calculator</a>
+      <a href="../../checklist.html">60-Sec Diagnostic</a>
+      <a href="../../terms.html">Terms</a>
+      <a href="../../privacy.html">Privacy</a>
+      <a href="../../refund.html">14-Day Refund Policy</a>
+    </footer>
+  </div>
+</body>
+</html>
